@@ -1,9 +1,9 @@
 # Docker image for "edge-orchestration"
 # TODO - need to reduce base image of edge-orchestration
 ### ubuntu:16.04 image size is 119MB
-### alpine:3.6 image size is 4MB
+### alpine:3.7 image size is 4MB
 ARG PLATFORM
-FROM $PLATFORM/ubuntu:16.04
+FROM alpine:3.7
 
 # environment variables
 ENV TARGET_DIR=/edge-orchestration
@@ -23,8 +23,23 @@ COPY $APP_QEMU_DIR/ /usr/bin/
 RUN mkdir -p $TARGET_DIR/res/
 
 # install required tools
-RUN apt-get update
-RUN apt-get install -y net-tools iproute2
+RUN apk update
+RUN apk search net-tools
+RUN apk add net-tools
+RUN apk search iproute2
+RUN apk add iproute2
+
+RUN apk --no-cache add wget ca-certificates libstdc++
+ARG APK_GLIBC_VERSION=2.29-r0
+ARG APK_GLIBC_FILE="glibc-${APK_GLIBC_VERSION}.apk"
+ARG APK_GLIBC_BIN_FILE="glibc-bin-${APK_GLIBC_VERSION}.apk"
+ARG APK_GLIBC_BASE_URL="https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${APK_GLIBC_VERSION}"
+RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
+    && wget "${APK_GLIBC_BASE_URL}/${APK_GLIBC_FILE}"       \
+    && apk --no-cache add "${APK_GLIBC_FILE}"               \
+    && wget "${APK_GLIBC_BASE_URL}/${APK_GLIBC_BIN_FILE}"   \
+    && apk --no-cache add "${APK_GLIBC_BIN_FILE}"           \
+    && rm glibc-*
 
 # expose ports
 EXPOSE $HTTP_PORT $MDNS_PORT $ZEROCONF_PORT $MNEDC_PORT $MNEDC_BROADCAST_PORT
@@ -33,4 +48,4 @@ EXPOSE $HTTP_PORT $MDNS_PORT $ZEROCONF_PORT $MNEDC_PORT $MNEDC_BROADCAST_PORT
 WORKDIR $TARGET_DIR
 
 # kick off the edge-orchestration container
-CMD ["sh", "run.sh"]
+CMD ["ash", "run.sh"]
